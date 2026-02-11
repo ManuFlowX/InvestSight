@@ -1,0 +1,13 @@
+package com.investsight.api;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class InvestsightApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(InvestsightApplication.class, args);
+	}
+
+}
