@@ -1,5 +1,6 @@
 package com.investsight.api.controller;
 
+import com.investsight.api.dto.PortfolioReportDTO;
 import com.investsight.api.model.Asset;
 import com.investsight.api.model.Portfolio;
 import com.investsight.api.service.PortfolioService;
@@ -52,5 +53,15 @@ public class PortfolioController {
         // Respondemos con un código 204 (NO CONTENT)
         // Significa: "Operación exitosa, el archivo se borró y ya no hay nada que mostrar"
         return ResponseEntity.noContent().build();
+    }
+
+    // --- NUEVO ENDPOINT: Ver el Reporte Financiero de Lujo (DTO) ---
+    @GetMapping("/{userId}/report")
+    public ResponseEntity<PortfolioReportDTO> getPortfolioReport(@PathVariable Long userId) {
+
+        // Le pedimos al Chef el plato bonito
+        PortfolioReportDTO report = portfolioService.getPortfolioReport(userId);
+
+        return ResponseEntity.ok(report);
     }
 }
