@@ -28,6 +28,7 @@ public class Portfolio {
     // Relación Uno a Uno: Este portafolio pertenece a un solo usuario
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", referencedColumnName = "id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private User user;
 
     // Relación Uno a Muchos: Un portafolio tiene una lista de muchos activos
