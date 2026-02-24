@@ -3,6 +3,7 @@ package com.investsight.api.controller;
 import com.investsight.api.model.Asset;
 import com.investsight.api.model.Portfolio;
 import com.investsight.api.service.PortfolioService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,7 +31,7 @@ public class PortfolioController {
     @PostMapping("/{portfolioId}/assets")
     public ResponseEntity<Asset> addAsset(
             @PathVariable Long portfolioId,
-            @RequestBody Asset newAsset) {
+            @Valid @RequestBody Asset newAsset) {
 
         // Le pasamos la orden al servicio (el cerebro) para que la guarde
         Asset savedAsset = portfolioService.addAssetToPortfolio(portfolioId, newAsset);
