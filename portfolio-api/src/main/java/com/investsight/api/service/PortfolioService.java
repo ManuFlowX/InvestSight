@@ -1,5 +1,7 @@
 package com.investsight.api.service;
 
+import com.investsight.api.dto.AssetReportDTO;
+import com.investsight.api.dto.PortfolioReportDTO;
 import com.investsight.api.model.Asset;
 import com.investsight.api.model.Portfolio;
 import com.investsight.api.repository.AssetRepository;
@@ -9,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -17,61 +21,92 @@ public class PortfolioService {
     private final PortfolioRepository portfolioRepository;
     private final AssetRepository assetRepository;
 
+    // --- Traemos al Oráculo ---
+    private final MarketDataService marketDataService;
+
     public Portfolio getPortfolioByUserId(Long userId) {
         return portfolioRepository.findByUserId(userId);
     }
 
-    // El escudo de seguridad: Si algo falla a la mitad, se cancela toda la operación
     @Transactional
     public Asset addAssetToPortfolio(Long portfolioId, Asset newAsset) {
-
-        // 1. Buscamos el portafolio
         Portfolio portfolio = portfolioRepository.findById(portfolioId)
                 .orElseThrow(() -> new RuntimeException("Portafolio no encontrado"));
 
-        // 2. Guardamos la nueva inversión
         newAsset.setPortfolio(portfolio);
         Asset savedAsset = assetRepository.save(newAsset);
 
-        // --- NUEVA LÓGICA MATEMÁTICA ---
-        // 3. Calculamos cuánto costó esta compra (Cantidad * Precio)
         BigDecimal investmentValue = newAsset.getQuantity().multiply(newAsset.getAveragePrice());
-
-        // 4. Se lo sumamos al valor total que ya tenía el portafolio
         BigDecimal newTotal = portfolio.getTotalValue().add(investmentValue);
 
-        // 5. Actualizamos y guardamos el portafolio con su nuevo saldo
         portfolio.setTotalValue(newTotal);
         portfolioRepository.save(portfolio);
 
         return savedAsset;
     }
 
-    // --- NUEVO METODO: Vender (Eliminar) una inversión ---
     @Transactional
     public void removeAssetFromPortfolio(Long portfolioId, Long assetId) {
-
-        // 1. Buscamos el activo que el cliente quiere vender usando su ID
         Asset assetToRemove = assetRepository.findById(assetId)
                 .orElseThrow(() -> new RuntimeException("Activo no encontrado"));
 
-        // 2. Medida de seguridad: Verificamos que esta acción realmente le pertenezca
         Portfolio portfolio = assetToRemove.getPortfolio();
         if (!portfolio.getId().equals(portfolioId)) {
             throw new RuntimeException("Error: Esta acción no pertenece a tu portafolio");
         }
 
-        // 3. Matemáticas inversas: Calculamos cuánto dinero se va a retirar
         BigDecimal investmentValue = assetToRemove.getQuantity().multiply(assetToRemove.getAveragePrice());
-
-        // 4. Se lo RESTAMOS al valor total del portafolio (.subtract)
         BigDecimal newTotal = portfolio.getTotalValue().subtract(investmentValue);
 
-        // 5. Actualizamos el saldo en el portafolio
         portfolio.setTotalValue(newTotal);
         portfolioRepository.save(portfolio);
-
-        // 6. Finalmente, el cajero borra la acción de la base de datos
         assetRepository.delete(assetToRemove);
+    }
+
+    // =========================================================================
+    // METODO: Generar el Reporte Financiero con Precios en Vivo (DTO)
+    // =========================================================================
+    public PortfolioReportDTO getPortfolioReport(Long userId) {
+
+        Portfolio portfolio = portfolioRepository.findByUserId(userId);
+        if (portfolio == null) {
+            throw new RuntimeException("Portafolio no encontrado");
+        }
+
+        BigDecimal totalInvested = BigDecimal.ZERO;
+        BigDecimal totalCurrentValue = BigDecimal.ZERO;
+        List<AssetReportDTO> assetReports = new ArrayList<>();
+
+        for (Asset asset : portfolio.getAssets()) {
+
+            BigDecimal invested = asset.getQuantity().multiply(asset.getAveragePrice());
+            BigDecimal currentPrice = marketDataService.getCurrentPrice(asset.getSymbol());
+            BigDecimal currentValue = asset.getQuantity().multiply(currentPrice);
+            BigDecimal profitOrLoss = currentValue.subtract(invested);
+
+            totalInvested = totalInvested.add(invested);
+            totalCurrentValue = totalCurrentValue.add(currentValue);
+
+            AssetReportDTO assetDTO = AssetReportDTO.builder()
+                    .symbol(asset.getSymbol())
+                    .quantity(asset.getQuantity())
+                    .averagePurchasePrice(asset.getAveragePrice())
+                    .currentMarketPrice(currentPrice)
+                    .totalCurrentValue(currentValue)
+                    .profitOrLoss(profitOrLoss)
+                    .build();
+
+            assetReports.add(assetDTO);
+        }
+
+        BigDecimal totalProfitOrLoss = totalCurrentValue.subtract(totalInvested);
+
+        return PortfolioReportDTO.builder()
+                .portfolioId(portfolio.getId())
+                .totalInvested(totalInvested)
+                .totalCurrentValue(totalCurrentValue)
+                .totalProfitOrLoss(totalProfitOrLoss)
+                .assets(assetReports)
+                .build();
     }
 }
