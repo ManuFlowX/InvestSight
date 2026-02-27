@@ -35,5 +35,6 @@ public class Asset {
     // Relación Muchos a Uno: Muchos activos pertenecen a UN solo portafolio
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "portfolio_id", nullable = false)
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private Portfolio portfolio;
 }
