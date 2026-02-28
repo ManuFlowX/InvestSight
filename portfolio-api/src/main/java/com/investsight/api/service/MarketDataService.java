@@ -1,30 +1,42 @@
 package com.investsight.api.service;
 
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
+import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class MarketDataService {
 
-    /**
-     * Este metodo simula ir a Wall Street a buscar el precio actual de una acción.
-     * Recibe el símbolo (Ej: AAPL) y devuelve su precio actual en el mercado.
-     */
+    private final RestTemplate restTemplate;
+
+    @Value("${market.api.key}")
+    private String apiKey;
+
     public BigDecimal getCurrentPrice(String symbol) {
+        String url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" + symbol + "&apikey=" + apiKey;
 
-        // Simulación de precios de mercado (Más adelante aquí pondremos la conexión a Yahoo Finance)
-        return switch (symbol.toUpperCase()) {
-            case "AAPL" -> new BigDecimal("175.50"); // Apple subió a 175.50
-            case "BTC" -> new BigDecimal("65000.00"); // Bitcoin subió a 65k
-            case "TSLA" -> new BigDecimal("190.25"); // Tesla bajó un poco
-            case "MSFT" -> new BigDecimal("410.00"); // Microsoft subió a 410
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> response = restTemplate.getForObject(url, Map.class);
 
-            // Si piden una empresa que no conocemos, le damos un precio aleatorio entre $50 y $150
-            default -> {
-                double randomPrice = 50.0 + (Math.random() * 100);
-                yield new BigDecimal(randomPrice).setScale(2, RoundingMode.HALF_UP);
+            if (response != null && response.containsKey("Global Quote")) {
+                @SuppressWarnings("unchecked")
+                Map<String, String> quote = (Map<String, String>) response.get("Global Quote");
+                String priceStr = quote.get("05. price");
+
+                if (priceStr != null) {
+                    return new BigDecimal(priceStr);
+                }
             }
-        };
+            // Si la API falla por límite de peticiones o símbolo no encontrado con la llave demo
+            return new BigDecimal("150.00");
+        } catch (Exception e) {
+            System.err.println("Error al obtener precio para " + symbol + ": " + e.getMessage());
+            return new BigDecimal("150.00");
+        }
     }
 }
