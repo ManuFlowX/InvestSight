@@ -2,6 +2,7 @@ package com.investsight.api.service;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import java.math.BigDecimal;
@@ -15,7 +16,7 @@ public class MarketDataService {
 
     @Value("${market.api.key}")
     private String apiKey;
-
+    @Cacheable(value = "marketPrices", key = "#symbol")
     public BigDecimal getCurrentPrice(String symbol) {
         String url = "https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=" + symbol + "&apikey=" + apiKey;
 
