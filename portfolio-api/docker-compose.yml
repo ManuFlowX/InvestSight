@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # 1. Contenedor de Base de Datos
+  mysql-db:
+    image: mysql:8.0.33
+    container_name: investsight-mysql
+    restart: always
+    environment:
+      MYSQL_DATABASE: investsightdb
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3307:3306" # Mapeamos al 3307 en tu PC para no chocar con tu instalación local
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  # 2. Contenedor de la API (Spring Boot)
+  api:
+    build: .
+    container_name: investsight-api
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      # Apuntamos a la base de datos interna de Docker llamada "mysql-db"
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/investsightdb?serverTimezone=UTC
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      MARKET_API_KEY: ${MARKET_API_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      - mysql-db
+
+volumes:
+  mysql-data:
